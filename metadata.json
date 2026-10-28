@@ -1,0 +1,6 @@
+{
+  "name": "SmartReceipt - 経費領収書報告アプリ",
+  "description": "写真やPDFを添付して経費・領収書をセキュアに管理・報告できるクラウドアプリ",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
