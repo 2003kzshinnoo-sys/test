@@ -8,15 +8,21 @@ import {
   User as UserIcon,
   Database,
   Cloud,
-  ChevronDown
+  ChevronDown,
+  Key
 } from 'lucide-react';
 
 interface NavbarProps {
   onOpenSecurityModal: () => void;
+  onOpenSecretsModal: () => void;
   reportCount: number;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenSecurityModal, reportCount }) => {
+export const Navbar: React.FC<NavbarProps> = ({ 
+  onOpenSecurityModal, 
+  onOpenSecretsModal, 
+  reportCount 
+}) => {
   const { user, loading, signInWithGoogle, signInAsGuest, signOut, authError, clearAuthError } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -64,6 +70,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenSecurityModal, reportCount
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 sm:gap-4">
+          {/* HStorage & Secrets Guide button */}
+          <button
+            onClick={onOpenSecretsModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 transition-colors shadow-sm"
+            title="HStorage（エイチストレージ）APIとSecrets設定手順"
+          >
+            <Key className="w-4 h-4 text-amber-400" />
+            <span className="hidden sm:inline">HStorage設定</span>
+          </button>
+
           {/* Security & RLS Rule status badge */}
           <button
             onClick={onOpenSecurityModal}

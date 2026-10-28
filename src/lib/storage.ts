@@ -51,7 +51,37 @@ export interface UploadedReceiptResult {
   fileSize: number;
 }
 
-// Convert File to Base64 Data URL as resilient fallback
+export interface StorageStatus {
+  hasHStorageKey: boolean;
+  connectionStatus?: 'connected' | 'auth_error' | 'unconfigured';
+  endpoint?: string;
+  bucket?: string;
+  folderId?: string;
+  activeEngine: 'hstorage' | 'firebase';
+  message: string;
+}
+
+/**
+ * Check H-Storage Secrets status from the server
+ */
+export async function checkStorageStatus(): Promise<StorageStatus> {
+  try {
+    const res = await fetch('/api/storage/status');
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('Could not query storage status from server:', err);
+  }
+  return {
+    hasHStorageKey: false,
+    connectionStatus: 'unconfigured',
+    activeEngine: 'firebase',
+    message: 'Firebase Storage が標準ストレージとして有効です',
+  };
+}
+
+// Convert File to Base64 Data URL
 export function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -62,28 +92,66 @@ export function fileToDataUrl(file: File): Promise<string> {
 }
 
 /**
- * Upload receipt image or PDF to Firebase Storage.
- * Falls back safely to high-fidelity Data URL if storage bucket is unavailable.
+ * Upload receipt image or PDF:
+ * 1. Tries server-side H-Storage API proxy (/api/storage/upload) with Secrets
+ * 2. Falls back smoothly to Firebase Storage or resilient data URL
  */
 export async function uploadReceiptFile(
   file: File,
   userId: string,
-  onProgress?: (percent: number) => void
+  onProgress?: (percent: number) => void,
+  userEmail?: string
 ): Promise<UploadedReceiptResult> {
   const validation = validateReceiptFile(file);
   if (!validation.valid) {
     throw new Error(validation.error);
   }
 
+  onProgress?.(20);
+  const base64Data = await fileToDataUrl(file);
+  onProgress?.(40);
+
+  // Try server proxy first (integrates H-Storage API key from Secrets)
+  try {
+    const response = await fetch('/api/storage/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        base64Data,
+        userId,
+        userEmail,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.fileUrl && data.filePath) {
+        onProgress?.(100);
+        return {
+          fileUrl: data.fileUrl,
+          filePath: data.filePath,
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+        };
+      }
+    }
+  } catch (proxyError) {
+    console.warn('Server storage proxy not reachable, attempting client Firebase Storage:', proxyError);
+  }
+
+  // Fallback to Firebase Storage
   const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const timestamp = Date.now();
   const filePath = `receipts/${userId}/${timestamp}_${cleanFileName}`;
 
   try {
     const storageRef = ref(storage, filePath);
-    onProgress?.(30);
+    onProgress?.(60);
 
-    // Upload to Firebase Storage
     const snapshot = await uploadBytes(storageRef, file, {
       contentType: file.type,
       customMetadata: {
@@ -92,7 +160,7 @@ export async function uploadReceiptFile(
       }
     });
 
-    onProgress?.(70);
+    onProgress?.(85);
     const downloadUrl = await getDownloadURL(snapshot.ref);
     onProgress?.(100);
 
@@ -104,18 +172,10 @@ export async function uploadReceiptFile(
       fileSize: file.size,
     };
   } catch (storageError) {
-    console.warn(
-      'Firebase Storage upload encountered an issue (CORS or bucket inactive). Using resilient inline data storage fallback:',
-      storageError
-    );
-
-    // Fallback: Convert to Data URL so user can seamlessly preview and store
-    onProgress?.(50);
-    const dataUrl = await fileToDataUrl(file);
+    console.warn('Firebase Storage direct upload error; using resilient fallback:', storageError);
     onProgress?.(100);
-
     return {
-      fileUrl: dataUrl,
+      fileUrl: base64Data,
       filePath: `inline/${userId}/${timestamp}_${cleanFileName}`,
       fileName: file.name,
       fileType: file.type,
@@ -125,17 +185,25 @@ export async function uploadReceiptFile(
 }
 
 /**
- * Delete receipt file from Firebase Storage
+ * Delete receipt file from H-Storage and Firebase Storage
  */
 export async function deleteReceiptFile(filePath: string): Promise<void> {
   if (!filePath || filePath.startsWith('inline/')) {
     return;
   }
 
+  // Call server proxy delete (for H-Storage)
+  fetch('/api/storage/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filePath }),
+  }).catch(() => {});
+
+  // Call Firebase Storage delete
   try {
     const fileRef = ref(storage, filePath);
     await deleteObject(fileRef);
   } catch (error) {
-    console.warn(`Could not delete file at ${filePath} from Storage (might already be deleted):`, error);
+    console.warn(`Could not delete file at ${filePath} from Storage:`, error);
   }
 }

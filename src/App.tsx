@@ -7,6 +7,7 @@ import { ReportCard } from './components/ReportCard';
 import { ReportFormModal } from './components/ReportFormModal';
 import { ReportDetailModal } from './components/ReportDetailModal';
 import { SecurityInfoModal } from './components/SecurityInfoModal';
+import { StorageSecretsModal } from './components/StorageSecretsModal';
 import { EmptyState } from './components/EmptyState';
 import { ExpenseReport, ExpenseReportFormData, ReportFilterOptions } from './types/report';
 import { 
@@ -45,6 +46,7 @@ function MainApp() {
   const [editingReport, setEditingReport] = useState<ExpenseReport | null>(null);
   const [detailReport, setDetailReport] = useState<ExpenseReport | null>(null);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+  const [isSecretsModalOpen, setIsSecretsModalOpen] = useState(false);
 
   // Toast notifications
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -169,6 +171,7 @@ function MainApp() {
       {/* Navigation */}
       <Navbar
         onOpenSecurityModal={() => setIsSecurityModalOpen(true)}
+        onOpenSecretsModal={() => setIsSecretsModalOpen(true)}
         reportCount={reports.length}
       />
 
@@ -310,12 +313,18 @@ function MainApp() {
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <button
+              onClick={() => setIsSecretsModalOpen(true)}
+              className="text-amber-400 hover:text-amber-300 font-medium transition"
+            >
+              HStorage (Secrets) 設定
+            </button>
+            <button
               onClick={() => setIsSecurityModalOpen(true)}
               className="hover:text-emerald-400 transition"
             >
               セキュリティルール（RLS仕様）
             </button>
-            <span>Firebase Firestore & Storage</span>
+            <span>Firebase Firestore & HStorage</span>
           </div>
         </div>
       </footer>
@@ -341,6 +350,11 @@ function MainApp() {
       <SecurityInfoModal
         isOpen={isSecurityModalOpen}
         onClose={() => setIsSecurityModalOpen(false)}
+      />
+
+      <StorageSecretsModal
+        isOpen={isSecretsModalOpen}
+        onClose={() => setIsSecretsModalOpen(false)}
       />
     </div>
   );

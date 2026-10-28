@@ -90,7 +90,7 @@ export async function createReport(
   // Upload receipt file
   let fileData = formData.existingFile;
   if (formData.file) {
-    fileData = await uploadReceiptFile(formData.file, userId, onUploadProgress);
+    fileData = await uploadReceiptFile(formData.file, userId, onUploadProgress, userEmail);
   }
 
   if (!fileData) {
@@ -156,7 +156,7 @@ export async function updateReport(
 
   // If a new file is uploaded, upload it and remove the old one
   if (formData.file) {
-    const newFile = await uploadReceiptFile(formData.file, userId, onUploadProgress);
+    const newFile = await uploadReceiptFile(formData.file, userId, onUploadProgress, currentReport.userEmail);
     if (currentReport.filePath && currentReport.filePath !== newFile.filePath) {
       deleteReceiptFile(currentReport.filePath).catch(() => {});
     }
