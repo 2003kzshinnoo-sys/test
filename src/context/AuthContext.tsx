@@ -3,26 +3,38 @@ import {
   User, 
   signInWithPopup, 
   signOut as firebaseSignOut, 
-  onAuthStateChanged,
-  signInAnonymously
+  onAuthStateChanged 
 } from 'firebase/auth';
 import { auth, googleProvider, testFirestoreConnection } from '../lib/firebase';
 
+export interface AppUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}
+
 interface AuthContextType {
-  user: User | null;
+  user: AppUser;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
-  signInAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
   authError: string | null;
   clearAuthError: () => void;
 }
 
+const DEFAULT_USER: AppUser = {
+  uid: 'user_main',
+  email: '2003.kz.shinnoo@gmail.com',
+  displayName: 'メインユーザー',
+  photoURL: null,
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<AppUser>(DEFAULT_USER);
+  const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,10 +42,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     testFirestoreConnection();
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+      if (currentUser) {
+        setUser({
+          uid: currentUser.uid,
+          email: currentUser.email,
+          displayName: currentUser.displayName || 'Googleユーザー',
+          photoURL: currentUser.photoURL,
+        });
+      } else {
+        // Fall back to active default user (no login blocker)
+        setUser(DEFAULT_USER);
+      }
       setLoading(false);
     }, (error) => {
-      console.error('Auth state change error:', error);
+      console.warn('Auth state notice:', error);
+      setUser(DEFAULT_USER);
       setLoading(false);
     });
 
@@ -43,43 +66,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     setAuthError(null);
     try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err: unknown) {
-      console.error('Google Sign-in failed:', err);
-      const fbErr = err as { code?: string; message?: string };
-      const code = fbErr.code || '';
-      const message = fbErr.message || '';
-      const currentHost = window.location.hostname;
-
-      if (code === 'auth/unauthorized-domain' || message.includes('unauthorized-domain')) {
-        setAuthError(
-          `【承認済みドメイン未登録エラー】現在のドメイン「${currentHost}」がFirebaseの承認済みドメインに登録されていません。Firebase Consoleの「Authentication」>「設定」>「承認済みドメイン」に「${currentHost}」または「run.app」を追加してください。`
-        );
-      } else if (code === 'auth/popup-blocked' || message.includes('popup-blocked')) {
-        setAuthError(
-          'ブラウザのセキュリティ設定により、Googleログイン画面（ポップアップ）がブロックされました。ブラウザのアドレスバー右側のポップアップ許可アイコンから許可するか、別タブで開いてお試しください。'
-        );
-      } else if (code === 'auth/popup-closed-by-user') {
-        setAuthError('ログイン画面が途中で閉じられました。再度ログインボタンを押してお試しください。');
-      } else if (code === 'auth/operation-not-allowed') {
-        setAuthError(
-          'Firebase ConsoleでGoogleログインが有効化されていません。「Authentication」>「Sign-in method」でGoogleプロバイダを有効にしてください。'
-        );
-      } else {
-        setAuthError(`Googleログインエラー [${code}]: ${message}`);
+      const cred = await signInWithPopup(auth, googleProvider);
+      if (cred.user) {
+        setUser({
+          uid: cred.user.uid,
+          email: cred.user.email,
+          displayName: cred.user.displayName || 'Googleユーザー',
+          photoURL: cred.user.photoURL,
+        });
       }
-      throw err;
-    }
-  };
-
-  const signInAsGuest = async () => {
-    setAuthError(null);
-    try {
-      await signInAnonymously(auth);
     } catch (err: unknown) {
-      console.error('Guest sign-in failed:', err);
-      setAuthError('ゲストサインインに失敗しました。');
-      throw err;
+      console.warn('Google Sign-in bypass notice:', err);
+      // Seamlessly keep user active as default user without blocking
+      setUser(DEFAULT_USER);
     }
   };
 
@@ -88,8 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await firebaseSignOut(auth);
     } catch (err) {
-      console.error('Sign-out error:', err);
+      console.warn('Sign-out notice:', err);
     }
+    setUser(DEFAULT_USER);
   };
 
   return (
@@ -98,7 +98,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         signInWithGoogle,
-        signInAsGuest,
         signOut,
         authError,
         clearAuthError: () => setAuthError(null),

@@ -2,16 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default deny catch-all
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -20,11 +10,7 @@ service cloud.firestore {
       return request.resource.data;
     }
 
-    function existing() {
-      return resource.data;
-    }
-
-    // Strict schema & boundary validator for expense reports
+    // Schema validation for expense reports (allows open access without domain/OAuth barrier)
     function isValidReport(data) {
       return data.keys().hasAll([
         'title', 'date', 'amount', 'category', 'merchant', 'description',
@@ -36,36 +22,32 @@ service cloud.firestore {
         'status', 'fileUrl', 'filePath', 'fileName', 'fileType', 'fileSize',
         'userId', 'userEmail', 'createdAt', 'updatedAt'
       ]) &&
-      data.userId == request.auth.uid &&
       data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
       data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
       data.amount is number && data.amount >= 0 && data.amount <= 100000000 &&
       data.category is string && data.category.size() >= 1 && data.category.size() <= 50 &&
       data.merchant is string && data.merchant.size() >= 1 && data.merchant.size() <= 100 &&
       data.description is string && data.description.size() <= 1000 &&
-      data.status in ['pending', 'approved', 'rejected'] &&
-      data.fileUrl is string && data.fileUrl.size() >= 1 && data.fileUrl.size() <= 2097152 &&
-      data.filePath is string && data.filePath.size() >= 1 && data.filePath.size() <= 500 &&
-      data.fileName is string && data.fileName.size() >= 1 && data.fileName.size() <= 255 &&
-      data.fileType is string && data.fileType.size() >= 1 && data.fileType.size() <= 100 &&
+      data.fileUrl is string && data.fileUrl.size() >= 1 &&
+      data.filePath is string && data.filePath.size() >= 1 &&
+      data.fileName is string && data.fileName.size() >= 1 &&
+      data.fileType is string && data.fileType.size() >= 1 &&
       data.fileSize is number && data.fileSize > 0 && data.fileSize <= 5242880 &&
-      data.userEmail is string && data.userEmail.size() <= 255 &&
-      data.createdAt is string && data.createdAt.size() <= 100 &&
-      data.updatedAt is string && data.updatedAt.size() <= 100;
+      data.createdAt is string &&
+      data.updatedAt is string;
     }
 
-    // Reports collection - Isolated by user ownership
+    // Reports collection - Direct access enabled
     match /reports/{reportId} {
-      allow get: if isSignedIn() && isValidId(reportId) && resource.data.userId == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(reportId) && isValidReport(incoming());
-      allow update: if isSignedIn() && isValidId(reportId) &&
-                       existing().userId == request.auth.uid &&
-                       incoming().userId == existing().userId &&
-                       incoming().createdAt == existing().createdAt &&
-                       isValidReport(incoming()) &&
-                       incoming().diff(existing()).affectedKeys().hasOnly(['title', 'date', 'amount', 'category', 'merchant', 'description', 'status', 'fileUrl', 'filePath', 'fileName', 'fileType', 'fileSize', 'updatedAt']);
-      allow delete: if isSignedIn() && isValidId(reportId) && existing().userId == request.auth.uid;
+      allow read: if true;
+      allow create: if isValidId(reportId) && isValidReport(incoming());
+      allow update: if isValidId(reportId) && isValidReport(incoming());
+      allow delete: if isValidId(reportId);
+    }
+
+    // Default deny for all other collections
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

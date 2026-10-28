@@ -8,10 +8,8 @@ import {
   User as UserIcon,
   Database,
   Key,
-  ChevronDown,
-  HelpCircle
+  ChevronDown
 } from 'lucide-react';
-import { AuthTroubleshootModal } from './AuthTroubleshootModal';
 
 interface NavbarProps {
   onOpenSecurityModal: () => void;
@@ -24,28 +22,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSecretsModal, 
   reportCount 
 }) => {
-  const { user, loading, signInWithGoogle, signInAsGuest, signOut, authError, clearAuthError } = useAuth();
+  const { user, loading, signInWithGoogle, signOut } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const [showTroubleshoot, setShowTroubleshoot] = useState(false);
 
   const handleGoogleLogin = async () => {
     try {
       setIsSigningIn(true);
       await signInWithGoogle();
     } catch {
-      // Error handled in auth context
-    } finally {
-      setIsSigningIn(false);
-    }
-  };
-
-  const handleGuestLogin = async () => {
-    try {
-      setIsSigningIn(true);
-      await signInAsGuest();
-    } catch {
-      // Error handled in auth context
+      // Ignored
     } finally {
       setIsSigningIn(false);
     }
@@ -150,60 +136,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                         ログアウト
                       </button>
                     </div>
+                    <div className="p-1">
+                      <button
+                        onClick={handleGoogleLogin}
+                        disabled={isSigningIn}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-emerald-300 hover:bg-slate-700/60 rounded-lg transition"
+                      >
+                        <LogIn className="w-4 h-4" />
+                        <span>Google連携（任意）</span>
+                      </button>
+                    </div>
                   </div>
                 </>
               )}
             </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleGoogleLogin}
-                disabled={isSigningIn}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md transition disabled:opacity-50"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Googleでログイン</span>
-              </button>
-              <button
-                onClick={handleGuestLogin}
-                disabled={isSigningIn}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition disabled:opacity-50"
-              >
-                <UserIcon className="w-3.5 h-3.5 text-slate-400" />
-                <span>ゲスト利用</span>
-              </button>
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
-
-      {authError && (
-        <div className="bg-rose-950/90 text-rose-100 text-xs px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-t border-rose-800">
-          <div className="flex items-center gap-2 flex-1">
-            <span className="font-medium">{authError}</span>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <button
-              onClick={() => setShowTroubleshoot(true)}
-              className="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] transition"
-            >
-              解決手順を見る
-            </button>
-            <button 
-              onClick={clearAuthError}
-              className="text-xs text-rose-300 underline hover:text-white"
-            >
-              閉じる
-            </button>
-          </div>
-        </div>
-      )}
-
-      <AuthTroubleshootModal
-        isOpen={showTroubleshoot}
-        errorMessage={authError}
-        onClose={() => setShowTroubleshoot(false)}
-      />
     </header>
   );
 };

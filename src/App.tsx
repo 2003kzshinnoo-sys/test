@@ -19,14 +19,11 @@ import {
 import { 
   CheckCircle2, 
   AlertCircle, 
-  ShieldCheck, 
-  CloudUpload, 
-  Sparkles,
   Receipt
 } from 'lucide-react';
 
 function MainApp() {
-  const { user, loading: authLoading, signInWithGoogle, signInAsGuest } = useAuth();
+  const { user, signInWithGoogle } = useAuth();
   
   // Reports state
   const [reports, setReports] = useState<ExpenseReport[]>([]);
@@ -197,42 +194,8 @@ function MainApp() {
           </div>
         )}
 
-        {/* If user is not signed in: Hero banner */}
-        {!user && !authLoading && (
-          <div className="mb-8 p-6 sm:p-10 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40 border border-slate-800 shadow-2xl text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold mb-4">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>データベース & ストレージ連携 経費領収書アプリ</span>
-            </div>
-            <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight mb-3">
-              写真・PDFを安全にクラウド保存<br />
-              スマート経費精算・報告
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-xl mx-auto mb-6 leading-relaxed">
-              領収書写真やPDFファイルをアップロードすると、クラウドストレージに安全に保管され、Firestoreデータベースに記録されます。セキュリティルール（RLS）により、本人以外のアクセスや一括改ざんを確実に防ぎます。
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button
-                onClick={() => signInWithGoogle()}
-                className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-sm shadow-xl shadow-emerald-500/20 active:scale-95 transition"
-              >
-                Googleでログインして始める
-              </button>
-              <button
-                onClick={() => signInAsGuest()}
-                className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-sm transition"
-              >
-                ゲストモードで試す
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* User is signed in: show stats & filter & list */}
-        {user && (
-          <>
-            {/* Dashboard metrics */}
-            <ReportStats reports={reports} />
+        {/* Main Dashboard Metrics and Reporting Interface */}
+        <ReportStats reports={reports} />
 
             {/* Filter toolbar */}
             <ReportFilterBar
@@ -290,18 +253,6 @@ function MainApp() {
                 ))}
               </div>
             )}
-          </>
-        )}
-
-        {/* If user is not signed in and not loading: prompt */}
-        {!user && !authLoading && (
-          <EmptyState
-            isFiltered={false}
-            onOpenCreateModal={handleOpenCreate}
-            isAuthenticated={false}
-            onLogin={() => signInWithGoogle()}
-          />
-        )}
       </main>
 
       {/* Footer */}

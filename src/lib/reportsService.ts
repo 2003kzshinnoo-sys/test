@@ -26,14 +26,11 @@ function generateReportId(): string {
  * Subscribe to the current user's reports in real-time
  */
 export function subscribeUserReports(
-  userId: string,
+  _userId: string,
   onUpdate: (reports: ExpenseReport[]) => void,
   onError?: (err: unknown) => void
 ): Unsubscribe {
-  const q = query(
-    collection(db, REPORTS_COLLECTION),
-    where('userId', '==', userId)
-  );
+  const q = collection(db, REPORTS_COLLECTION);
 
   return onSnapshot(
     q,
